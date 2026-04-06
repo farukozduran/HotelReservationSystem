@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="HotelReservation.API/HotelReservation.API.csproj" Id="ca0dd4d7-bca3-42c5-a555-bf93989ffe03" />
+  <Project Path="HotelReservation.Application/HotelReservation.Application.csproj" Id="2b1d0e8b-b9c3-48cb-833b-4fa089ed477a" />
+  <Project Path="HotelReservation.Domain/HotelReservation.Domain.csproj" Id="8b201cb0-928a-40b7-bd7b-7f8885a6e27f" />
+  <Project Path="HotelReservation.Infrastructure/HotelReservation.Infrastructure.csproj" Id="d48ca59a-476d-4ea9-88cc-cb1b0ab8687a" />
+</Solution>
