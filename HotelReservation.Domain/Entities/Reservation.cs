@@ -17,5 +17,6 @@
         public User Customer { get; set; }
 
         public ICollection<ReservationRoom> ReservationRooms { get; set; }
+        public ICollection<Payment> Payments { get; set; }
     }
 }
