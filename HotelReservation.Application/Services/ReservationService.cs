@@ -14,35 +14,30 @@ namespace HotelReservation.Application.Services
             _context = context;
         }
 
-        public async Task<bool> IsRoomAvailable(int roomId, DateTime checkInDate, DateTime checkOutDate)
-        {
-            if (checkInDate >= checkOutDate)
-            {
-                throw new ArgumentException("Check-out date must be after check-in date.");
-            }
+        //public async Task<bool> IsRoomAvailable(int roomId, DateTime checkInDate, DateTime checkOutDate)
+        //{
+        //    if (checkInDate >= checkOutDate)
+        //    {
+        //        throw new ArgumentException("Check-out date must be after check-in date.");
+        //    }
 
-            if (checkInDate < DateTime.Today)
-            {
-                throw new ArgumentException("Check-in date cannot be in the past.");
-            }
+        //    if (checkInDate < DateTime.Today)
+        //    {
+        //        throw new ArgumentException("Check-in date cannot be in the past.");
+        //    }
 
-            var room = await _context.Rooms.Include(r => r.Reservations).FirstOrDefaultAsync(r => r.Id == roomId);
+        //    if (roomId == 0)
+        //    {
+        //        throw new ArgumentException("Room Id must be a positive integer.");
+        //    }
 
-            if (room == null)
-            {
-                throw new ArgumentException("Room not found.");
-            }
-
-            foreach (var reservation in room.Reservations)
-            {
-                if ((checkInDate < reservation.EndDate) && (checkOutDate > reservation.StartDate))
-                {
-                    return false; // Room is not available
-                }
-            }
-
-            return true;
-        }
+        //    return !await _context.Reservations
+        //        .AnyAsync(res =>
+        //            res.RoomId == roomId &&
+        //            checkInDate < res.EndDate &&
+        //            checkOutDate > res.StartDate
+        //        );
+        //}
 
         public async Task<Reservation> CreateReservation(int customerId, int roomId, DateTime checkInDate, DateTime checkOutDate)
         {
@@ -51,22 +46,69 @@ namespace HotelReservation.Application.Services
                 throw new ArgumentException("Customer ID and Room ID must be positive integers.");
             }
 
-            if (!await IsRoomAvailable(roomId, checkInDate, checkOutDate))
+            if (checkInDate >= checkOutDate)
             {
-                throw new InvalidOperationException("The room is not available for the selected dates.");
+                throw new ArgumentException("Invalid date range!");
             }
 
-            var reservation = new Reservation
+            if (checkInDate < DateTime.Today)
             {
-                RoomId = roomId,
-                CustomerId = customerId,
-                StartDate = checkInDate,
-                EndDate = checkOutDate
-            };
+                throw new ArgumentException("Check-in date cannot be in the past.");
+            }
 
-            _context.Reservations.Add(reservation);
-            await _context.SaveChangesAsync();
-            return reservation;
+            // Transaction
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // DB Level Check
+
+                var hasConflict = await _context.Reservations
+                    .AnyAsync(res =>
+                        res.RoomId == roomId &&
+                        checkInDate < res.EndDate &&
+                        checkOutDate > res.StartDate);
+
+                if (hasConflict)
+                {
+                    throw new InvalidOperationException("The room is not available for the selected dates.");
+                }
+
+                var reservation = new Reservation
+                {
+                    RoomId = roomId,
+                    CustomerId = customerId,
+                    StartDate = checkInDate,
+                    EndDate = checkOutDate
+                };
+
+                _context.Reservations.Add(reservation);
+                await _context.SaveChangesAsync();
+
+                // COMMIT
+                await transaction.CommitAsync();
+
+                return reservation;
+
+            }
+            catch
+            {
+                // If there is an error ROLLBACK
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<List<Room>> GetAvailableRooms(int hotelId, DateTime checkInDate, DateTime checkOutDate)
+        {
+            return await _context.Rooms
+                .Where(r => r.HotelId == hotelId)
+                .Where(r => !_context.Reservations.Any(res =>
+                    res.RoomId == r.Id &&
+                    checkInDate < res.EndDate &&
+                    checkOutDate > res.StartDate
+                ))
+                .ToListAsync();
         }
     }
 }
