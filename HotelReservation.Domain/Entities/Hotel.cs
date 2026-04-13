@@ -3,16 +3,19 @@
     public class Hotel
     {
         public int Id { get; set; }
-        public string Code { get; set; } = null!;
-        public string Name { get; set; } = null!;
-        public string Phone { get; set; } = null!;
+        public string Code { get; set; }
+        public string Name { get; set; }
+        public string Phone { get; set; }
         public int RoomCount { get; set; }
-        public string City { get; set; } = null!;
-        public string PostalCode { get; set; } = null!;
-        public string Email { get; set; } = null!;
-        public string ManagerCode { get; set; } = null!;
+        public string City { get; set; }
+        public string PostalCode { get; set; }
+        public string Email { get; set; }
 
-        // Navigation Property
-        public ICollection<Room> Rooms { get; set; } = new List<Room>();
+        public int ManagerUserId { get; set; }
+
+
+        public User ManagerUser { get; set; }
+        public ICollection<Room> Rooms { get; set; }
+        public ICollection<Reservation> Reservations { get; set; }
     }
 }

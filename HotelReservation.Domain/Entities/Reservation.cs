@@ -6,15 +6,16 @@
 
         public int HotelId { get; set; }
         public int CustomerId { get; set; }
-        public int RoomId { get; set; }
 
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
 
-        public int RoomCount { get; set; }
+        public string Status { get; set; } // Pending, Confirmend, Cancelled
+        public DateTime CreatedAt { get; set; }
 
-        // Navigation Properties
-        public Room Room { get; set; } = null!;
-        public Customer Customer { get; set; } = null!;
+        public Hotel Hotel { get; set; }
+        public User Customer { get; set; }
+
+        public ICollection<ReservationRoom> ReservationRooms { get; set; }
     }
 }

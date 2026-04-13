@@ -4,15 +4,16 @@
     {
         public int Id { get; set; }
         public int HotelId { get; set; }
-        public string RoomNumber { get; set; } = null!;
+        public string RoomNumber { get; set; }
         public int RoomTypeId { get; set; }
         public int RoomStatusId { get; set; }
 
         public decimal Price { get; set; }
 
-        // Navigation Properties
-        public Hotel Hotel { get; set; } = null!;
-        public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
+        public Hotel Hotel { get; set; }
+        public RoomType RoomType { get; set; }
+        public RoomStatus RoomStatus { get; set; }
 
+        public ICollection<ReservationRoom> ReservationRooms { get; set; }
     }
 }

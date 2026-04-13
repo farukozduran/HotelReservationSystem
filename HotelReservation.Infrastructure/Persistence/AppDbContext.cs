@@ -11,22 +11,73 @@ namespace HotelReservation.Infrastructure.Persistence
 
         public DbSet<Hotel> Hotels => Set<Hotel>();
         public DbSet<Room> Rooms => Set<Room>();
-        public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<Reservation> Reservations => Set<Reservation>();
+        public DbSet<ReservationRoom> ReservationRooms => Set<ReservationRoom>();
+
+        public DbSet<Payment> Payment => Set<Payment>();
+        public DbSet<PaymentMethod> PaymentMethod => Set<PaymentMethod>();
+        public DbSet<PaymentStatus> PaymentStatuses => Set<PaymentStatus>();
+
+        public DbSet<User> Users => Set<User>();
+        public DbSet<Role> Roles => Set<Role>();
+        public DbSet<UserRole> UserRoles => Set<UserRole>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Fluent API
+            // Room Price Precision
+            modelBuilder.Entity<Room>()
+                .Property(r => r.Price)
+                .HasPrecision(18, 2);
+
+            // ReservationRoom (Many-to-Many)
+            modelBuilder.Entity<ReservationRoom>()
+                .HasKey(rr => new { rr.ReservationId, rr.RoomId });
+
+            modelBuilder.Entity<ReservationRoom>()
+                .HasOne(rr => rr.Reservation)
+                .WithMany(r => r.ReservationRooms)
+                .HasForeignKey(rr => rr.ReservationId);
+
+            modelBuilder.Entity<ReservationRoom>()
+                .HasOne(rr => rr.Room)
+                .WithMany(r => r.ReservationRooms)
+                .HasForeignKey(rr => rr.RoomId);
+
+            // UserRole (Many-to-many)
+            modelBuilder.Entity<UserRole>()
+                .HasKey(ur => new { ur.UserId, ur.RoleId });
+
+            modelBuilder.Entity<UserRole>()
+                .HasOne(ur => ur.User)
+                .WithMany(u => u.UserRoles)
+                .HasForeignKey(ur => ur.UserId);
+
+            modelBuilder.Entity<UserRole>()
+                .HasOne(ur => ur.Role)
+                .WithMany(r => r.UserRoles)
+                .HasForeignKey(ur => ur.RoleId);
+
+            // Hotel -> Rooms
             modelBuilder.Entity<Hotel>()
                 .HasMany(h => h.Rooms)
                 .WithOne(h => h.Hotel)
                 .HasForeignKey(r => r.HotelId);
 
-            modelBuilder.Entity<Room>()
-                .Property(r => r.Price)
-                .HasPrecision(18, 2);
+            // Hotel -> Manager (User)
+            modelBuilder.Entity<Hotel>()
+                .HasOne(h => h.ManagerUser)
+                .WithMany()
+                .HasForeignKey(h => h.ManagerUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Reservation -> User (Customer)
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Customer)
+                .WithMany(u => u.Reservations)
+                .HasForeignKey(r => r.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
