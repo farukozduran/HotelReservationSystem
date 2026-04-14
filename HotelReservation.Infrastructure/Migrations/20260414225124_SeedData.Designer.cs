@@ -4,6 +4,7 @@ using HotelReservation.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HotelReservation.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260414225124_SeedData")]
+    partial class SeedData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -111,7 +114,13 @@ namespace HotelReservation.Infrastructure.Migrations
                     b.Property<int>("PaymentMethodId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("PaymentMethodId1")
+                        .HasColumnType("int");
+
                     b.Property<int>("PaymentStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PaymentStatusId1")
                         .HasColumnType("int");
 
                     b.Property<int>("ReservationId")
@@ -121,7 +130,11 @@ namespace HotelReservation.Infrastructure.Migrations
 
                     b.HasIndex("PaymentMethodId");
 
+                    b.HasIndex("PaymentMethodId1");
+
                     b.HasIndex("PaymentStatusId");
+
+                    b.HasIndex("PaymentStatusId1");
 
                     b.HasIndex("ReservationId");
 
@@ -675,16 +688,24 @@ namespace HotelReservation.Infrastructure.Migrations
             modelBuilder.Entity("HotelReservation.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("HotelReservation.Domain.Entities.PaymentMethod", "PaymentMethod")
-                        .WithMany("Payments")
+                        .WithMany()
                         .HasForeignKey("PaymentMethodId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("HotelReservation.Domain.Entities.PaymentStatus", "PaymentStatus")
+                    b.HasOne("HotelReservation.Domain.Entities.PaymentMethod", null)
                         .WithMany("Payments")
+                        .HasForeignKey("PaymentMethodId1");
+
+                    b.HasOne("HotelReservation.Domain.Entities.PaymentStatus", "PaymentStatus")
+                        .WithMany()
                         .HasForeignKey("PaymentStatusId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("HotelReservation.Domain.Entities.PaymentStatus", null)
+                        .WithMany("Payments")
+                        .HasForeignKey("PaymentStatusId1");
 
                     b.HasOne("HotelReservation.Domain.Entities.Reservation", "Reservation")
                         .WithMany("Payments")

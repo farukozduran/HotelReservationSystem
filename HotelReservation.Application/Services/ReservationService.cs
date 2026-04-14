@@ -118,7 +118,7 @@ namespace HotelReservation.Application.Services
             }
         }
 
-        public async Task<List<Room>> GetAvailableRooms(int hotelId, DateTime checkInDate, DateTime checkOutDate)
+        public async Task<List<RoomDto>> GetAvailableRooms(int hotelId, DateTime checkInDate, DateTime checkOutDate)
         {
             if(checkInDate >= checkOutDate)
             {
@@ -127,13 +127,19 @@ namespace HotelReservation.Application.Services
 
             return await _context.Rooms
                 .Where(r => r.HotelId == hotelId)
-                .Where(r => r.RoomStatusId == 1) 
+                .Where(r => r.RoomStatusId == 1)
                 .Where(r => !_context.Reservations
                     .Where(DateOverlap(checkInDate, checkOutDate))
                     .Any(res =>
                         res.ReservationRooms.Any(rr => rr.RoomId == r.Id)))
-                .Include(r => r.RoomType)
-                .Include(r => r.RoomStatus)
+                .Select(r => new RoomDto
+                {
+                    Id = r.Id,
+                    RoomNumber = r.RoomNumber,
+                    Price = r.Price,
+                    RoomType = r.RoomType.Name,
+                    RoomStatus = r.RoomStatus.Name
+                })
                 .ToListAsync();
         }
     }
