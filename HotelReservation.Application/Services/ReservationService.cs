@@ -1,7 +1,10 @@
-﻿using HotelReservation.Application.Interfaces;
+﻿using HotelReservation.Application.DTOs;
+using HotelReservation.Application.Interfaces;
 using HotelReservation.Domain.Entities;
 using HotelReservation.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Abstractions;
+using System.Linq.Expressions;
 
 namespace HotelReservation.Application.Services
 {
@@ -14,101 +17,124 @@ namespace HotelReservation.Application.Services
             _context = context;
         }
 
-        //public async Task<bool> IsRoomAvailable(int roomId, DateTime checkInDate, DateTime checkOutDate)
-        //{
-        //    if (checkInDate >= checkOutDate)
-        //    {
-        //        throw new ArgumentException("Check-out date must be after check-in date.");
-        //    }
+        private Expression<Func<Reservation, bool>> DateOverlap(DateTime checkIn, DateTime checkOut)
+        {
+            return res => checkIn < res.EndDate && checkOut > res.StartDate;
+        }
+                
+        public async Task<Reservation> CreateReservation(CreateReservationRequest request)
+        {
+            if (request.CustomerId <= 0)
+            {
+                throw new ArgumentException("Invalid Customer ID!");
+            }
 
-        //    if (checkInDate < DateTime.Today)
-        //    {
-        //        throw new ArgumentException("Check-in date cannot be in the past.");
-        //    }
+            if (request.RoomIds == null || !request.RoomIds.Any())
+            {
+                throw new ArgumentException("At least one room must be selected!");
+            }
 
-        //    if (roomId == 0)
-        //    {
-        //        throw new ArgumentException("Room Id must be a positive integer.");
-        //    }
+            if (request.CheckInDate >= request.CheckOutDate)
+            {
+                throw new ArgumentException("Invalid date range!");
+            }
 
-        //    return !await _context.Reservations
-        //        .AnyAsync(res =>
-        //            res.RoomId == roomId &&
-        //            checkInDate < res.EndDate &&
-        //            checkOutDate > res.StartDate
-        //        );
-        //}
+            if (request.CheckInDate < DateTime.Today)
+            {
+                throw new ArgumentException("Check-in date cannot be in the past.");
+            }
 
-        //public async Task<Reservation> CreateReservation(int customerId, int roomId, DateTime checkInDate, DateTime checkOutDate)
-        //{
-        //    if (customerId <= 0 || roomId <= 0)
-        //    {
-        //        throw new ArgumentException("Customer ID and Room ID must be positive integers.");
-        //    }
+            // Transaction
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-        //    if (checkInDate >= checkOutDate)
-        //    {
-        //        throw new ArgumentException("Invalid date range!");
-        //    }
+            try
+            {
+                // DB Level Check
 
-        //    if (checkInDate < DateTime.Today)
-        //    {
-        //        throw new ArgumentException("Check-in date cannot be in the past.");
-        //    }
+                var roomIds = request.RoomIds.Distinct().ToList();
 
-        //    // Transaction
-        //    using var transaction = await _context.Database.BeginTransactionAsync();
+                var rooms = await _context.Rooms
+                    .Where(r => roomIds.Contains(r.Id))
+                    .ToListAsync();
 
-        //    try
-        //    {
-        //        // DB Level Check
+                if (rooms.Select(r => r.HotelId).Distinct().Count() > 1)
+                {
+                    throw new Exception("Rooms must belong to the same hotel!");
+                }
 
-        //        var hasConflict = await _context.Reservations
-        //            .AnyAsync(res =>
-        //                res.RoomId == roomId &&
-        //                checkInDate < res.EndDate &&
-        //                checkOutDate > res.StartDate);
+                if(rooms.Any(r => r.RoomStatusId != 1))
+                {
+                    throw new Exception("One or more rooms are not available.");
+                }
+                
+                var conflictingRoomIds = await _context.Reservations
+                    .Where(DateOverlap(request.CheckInDate, request.CheckOutDate))
+                    .SelectMany(res => res.ReservationRooms)
+                    .Where(rr => roomIds.Contains(rr.RoomId))
+                    .Select(rr => rr.RoomId)
+                    .Distinct()
+                    .ToListAsync();
 
-        //        if (hasConflict)
-        //        {
-        //            throw new InvalidOperationException("The room is not available for the selected dates.");
-        //        }
+                if (conflictingRoomIds.Any())
+                {
+                    throw new InvalidOperationException(
+                        $"Rooms not available: {string.Join(", ", conflictingRoomIds)}");
+                }
 
-        //        var reservation = new Reservation
-        //        {
-        //            RoomId = roomId,
-        //            CustomerId = customerId,
-        //            StartDate = checkInDate,
-        //            EndDate = checkOutDate
-        //        };
+                var reservation = new Reservation
+                {
+                    CustomerId = request.CustomerId,
+                    StartDate = request.CheckInDate,
+                    EndDate = request.CheckOutDate,
+                    CreatedAt = DateTime.UtcNow,
+                    Status = ReservationStatus.Pending
+                };
 
-        //        _context.Reservations.Add(reservation);
-        //        await _context.SaveChangesAsync();
+                _context.Reservations.Add(reservation);
+                await _context.SaveChangesAsync();
 
-        //        // COMMIT
-        //        await transaction.CommitAsync();
+                foreach (var roomId in request.RoomIds)
+                {
+                    _context.ReservationRooms.Add(new ReservationRoom
+                    {
+                        ReservationId = reservation.Id,
+                        RoomId = roomId
+                    });
+                }
 
-        //        return reservation;
+                await _context.SaveChangesAsync();
 
-        //    }
-        //    catch
-        //    {
-        //        // If there is an error ROLLBACK
-        //        await transaction.RollbackAsync();
-        //        throw;
-        //    }
-        //}
+                // COMMIT
+                await transaction.CommitAsync();
 
-        //public async Task<List<Room>> GetAvailableRooms(int hotelId, DateTime checkInDate, DateTime checkOutDate)
-        //{
-        //    return await _context.Rooms
-        //        .Where(r => r.HotelId == hotelId)
-        //        .Where(r => !_context.Reservations.Any(res =>
-        //            res.RoomId == r.Id &&
-        //            checkInDate < res.EndDate &&
-        //            checkOutDate > res.StartDate
-        //        ))
-        //        .ToListAsync();
-        //}
+                return reservation;
+
+            }
+            catch
+            {
+                // If there is an error ROLLBACK
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<List<Room>> GetAvailableRooms(int hotelId, DateTime checkInDate, DateTime checkOutDate)
+        {
+            if(checkInDate >= checkOutDate)
+            {
+                throw new ArgumentException("Invalid date range");
+            }
+
+            return await _context.Rooms
+                .Where(r => r.HotelId == hotelId)
+                .Where(r => r.RoomStatusId == 1) 
+                .Where(r => !_context.Reservations
+                    .Where(DateOverlap(checkInDate, checkOutDate))
+                    .Any(res =>
+                        res.ReservationRooms.Any(rr => rr.RoomId == r.Id)))
+                .Include(r => r.RoomType)
+                .Include(r => r.RoomStatus)
+                .ToListAsync();
+        }
     }
 }

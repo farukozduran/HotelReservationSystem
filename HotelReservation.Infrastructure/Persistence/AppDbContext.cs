@@ -26,6 +26,32 @@ namespace HotelReservation.Infrastructure.Persistence
         {
             base.OnModelCreating(modelBuilder);
 
+            // Hotel -> Rooms
+            modelBuilder.Entity<Hotel>()
+                .HasMany(h => h.Rooms)
+                .WithOne(h => h.Hotel)
+                .HasForeignKey(r => r.HotelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Hotel -> Manager (User)
+            modelBuilder.Entity<Hotel>()
+                .HasOne(h => h.ManagerUser)
+                .WithMany()
+                .HasForeignKey(h => h.ManagerUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Reservation -> User (Customer)
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Customer)
+                .WithMany(u => u.Reservations)
+                .HasForeignKey(r => r.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Hotel)
+                .WithMany(h => h.Reservations)
+                .HasForeignKey(r => r.HotelId);
+
             // Room Price Precision
             modelBuilder.Entity<Room>()
                 .Property(r => r.Price)
@@ -61,34 +87,10 @@ namespace HotelReservation.Infrastructure.Persistence
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(ur => ur.RoleId);
 
-            modelBuilder.Entity<Payment>()
-                .Property(p => p.Amount)
-                .HasPrecision(18, 2);
-
-            // Hotel -> Rooms
-            modelBuilder.Entity<Hotel>()
-                .HasMany(h => h.Rooms)
-                .WithOne(h => h.Hotel)
-                .HasForeignKey(r => r.HotelId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Hotel -> Manager (User)
-            modelBuilder.Entity<Hotel>()
-                .HasOne(h => h.ManagerUser)
-                .WithMany()
-                .HasForeignKey(h => h.ManagerUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            // Reservation -> User (Customer)
-            modelBuilder.Entity<Reservation>()
-                .HasOne(r => r.Customer)
-                .WithMany(u => u.Reservations)
-                .HasForeignKey(r => r.CustomerId)
-                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Payment>()
                 .HasOne(p => p.Reservation)
-                .WithMany()
+                .WithMany(r => r.Payments)
                 .HasForeignKey(p => p.ReservationId);
 
             modelBuilder.Entity<Payment>()
@@ -100,6 +102,10 @@ namespace HotelReservation.Infrastructure.Persistence
                 .HasOne(p => p.PaymentStatus)
                 .WithMany()
                 .HasForeignKey(p => p.PaymentStatusId);
+
+            modelBuilder.Entity<Payment>()
+                .Property(p => p.Amount)
+                .HasPrecision(18, 2);
         }
     }
 }

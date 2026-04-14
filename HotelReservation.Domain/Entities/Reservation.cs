@@ -10,7 +10,7 @@
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
 
-        public string Status { get; set; } // Pending, Confirmend, Cancelled
+        public ReservationStatus Status { get; set; } // Pending, Confirmend, Cancelled
         public DateTime CreatedAt { get; set; }
 
         public Hotel Hotel { get; set; }
@@ -18,5 +18,12 @@
 
         public ICollection<ReservationRoom> ReservationRooms { get; set; }
         public ICollection<Payment> Payments { get; set; }
+    }
+
+    public enum ReservationStatus
+    {
+        Pending,
+        Confirmed,
+        Cancelled
     }
 }
